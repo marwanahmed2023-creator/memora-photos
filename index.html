@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#111318">
+<title>Memora Photos</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:#111318;color:#f5f6f8;display:grid;place-items:center;padding:24px}
+main{width:min(620px,100%);background:#1b1e26;border:1px solid #343946;border-radius:22px;padding:24px}
+h1{margin:0 0 8px;font-size:27px}
+p{color:#b7bdca;line-height:1.5}
+#status{padding:14px;border-radius:12px;background:#252a35;margin:18px 0}
+#previews{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:10px;margin:16px 0}
+figure{margin:0;min-width:0}
+figure img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;background:#090a0d}
+figcaption{font-size:12px;color:#c5cad4;overflow-wrap:anywhere;margin-top:5px}
+button{width:100%;border:0;border-radius:13px;padding:15px 18px;background:#e9edf5;color:#171a20;font-weight:700;font-size:16px}
+button:disabled{opacity:.45}
+small{display:block;color:#9da5b4;line-height:1.5;margin-top:14px}
+</style>
+</head>
+<body>
+<main>
+  <h1>Memora Photos</h1>
+  <p>Receive original photos from Memora, then use your device's sharing options to save them.</p>
+  <div id="status" role="status">Waiting for photos from Memora… Keep the Memora tab open while this page is open.</div>
+  <div id="previews"></div>
+  <button id="share" disabled>Save to Photos</button>
+  <small>On iPhone or iPad, the sharing sheet may offer Save Image. A website cannot silently add files to your Photos library. If file sharing is unavailable in this browser, use the download option in Memora instead.</small>
+</main>
+<script>
+let receivedFiles = [];
+const statusBox = document.getElementById('status');
+const shareButton = document.getElementById('share');
+const previews = document.getElementById('previews');
+
+window.addEventListener('message', (event) => {
+  if (!window.opener || event.source !== window.opener) return;
+  const data = event.data;
+  if (!data || data.type !== 'MEMORA_PHOTOS' || !Array.isArray(data.files)) return;
+  receivedFiles = data.files.filter(f => f instanceof File);
+  previews.replaceChildren();
+  receivedFiles.forEach(file => {
+    const figure = document.createElement('figure');
+    const img = document.createElement('img');
+    const caption = document.createElement('figcaption');
+    const url = URL.createObjectURL(file);
+    img.src = url;
+    img.alt = file.name;
+    caption.textContent = file.name;
+    figure.append(img, caption);
+    previews.append(figure);
+  });
+  statusBox.textContent = receivedFiles.length
+    ? receivedFiles.length + ' original photo(s) received. Tap below to open the sharing sheet.'
+    : 'No photos were received. Return to Memora and try again.';
+  shareButton.disabled = receivedFiles.length === 0;
+});
+
+shareButton.addEventListener('click', async () => {
+  if (!receivedFiles.length) return;
+  try {
+    if (navigator.share && navigator.canShare && navigator.canShare({files: receivedFiles})) {
+      await navigator.share({files: receivedFiles, title: 'Photos from Memora'});
+      statusBox.textContent = 'Sharing sheet opened. Choose Save Image / Save to Photos if offered.';
+    } else {
+      statusBox.textContent = 'This browser does not support sharing these files. Return to Memora and use its download option.';
+    }
+  } catch (error) {
+    if (error.name !== 'AbortError') statusBox.textContent = 'Could not open sharing: ' + error.message;
+  }
+});
+</script>
+</body>
+</html>
