@@ -60,6 +60,12 @@ window.addEventListener('message', (event) => {
   shareButton.disabled = receivedFiles.length === 0;
 });
 
+window.addEventListener('load', () => {
+  if (window.opener) {
+    window.opener.postMessage({type: 'MEMORA_PHOTOS_READY'}, '*');
+  }
+});
+
 shareButton.addEventListener('click', async () => {
   if (!receivedFiles.length) return;
   try {
